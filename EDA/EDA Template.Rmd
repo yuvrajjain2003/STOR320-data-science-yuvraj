@@ -1,0 +1,568 @@
+---
+title: "Exploratory Data Analysis"
+author: "STOR 320.01 Group 18"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(kableExtra)
+library(corrplot)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+# Import Data Below
+medical_student <- read_csv(file = "DataMedTeach.csv", show_col_types = FALSE)
+medical_student
+```
+
+# Creator: Betissa Kouassi-Brou
+
+### Q1: What role does the year of study of the participant play into the level of burnout?
+
+```{r}
+library(ggplot2)
+ggplot(medical_student, aes(x = factor(year), y = mbi_ex))+
+  geom_boxplot() +
+  labs(x = "Year of Study", y = "Burnout Level")
+```
+
+```{r}
+
+burnout_by_year <- aggregate(mbi_ex ~ year, data = medical_student, FUN = mean)
+
+burnout_table <- kbl(burnout_by_year, align = "c") %>%
+  kable_classic(full_width = F) %>%
+  kable_styling("striped", font_size = 14)
+
+burnout_table
+```
+
+### Q2: Is there a significant linear relationship between burnout levels and hours spent studying among medical students, and if so, what is the strength of this relationship?
+
+
+
+```{r}
+plot(medical_student$stud_h, medical_student$mbi_ex, pch = 19, col = "lightblue",
+     xlab = "Student hours", ylab = "MBI exhaustion")
+
+abline(lm(medical_student$mbi_ex ~ medical_student$stud_h), col = "red", lwd = 3)
+
+cor_val <- round(cor(medical_student$mbi_ex, medical_student$stud_h), 2)
+text(x = 25, y = 95, paste("Correlation:", cor_val))
+
+mtext(paste("Correlation:", cor_val), side = 1, line = 2)
+
+```
+
+# Interpreter: Yuvraj Jain
+
+### Q1: Is there a disparity in the Job Satisfaction Score between genders?
+
+I start off by creating a density plot to visualize the data at a first glance, and see whether this question is worth investigating. JSPE scores refer to job satisfaction scores calculated on the JSPE (Jefferson Scale of Physician Empathy) scale through 20 items, each answered on  7-point Likert scale (1 ¼ Strongly Disagree, 7 ¼ Strongly Agree).
+
+```{r}
+# Create a box plot to compare the job satisfaction score between genders
+medical_student_i_1 <- medical_student
+
+ggplot(medical_student_i_1, aes(x = jspe, fill = factor(sex))) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("#00BFC4", "#F8766D", "#FFFFB0"), name = "Gender",
+                    labels = c("Male", "Female", "Non-Binary")) +
+  theme_minimal() +
+  labs(x = "JSPE Score", y = "Density",
+       title = "Distribution of JSPE Scores by Gender") +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12, face = "bold"),
+        legend.position = "top",
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
+        panel.border = element_rect(color="gray30", fill=NA, linewidth=1))
+```
+
+```{r}
+sum(medical_student$sex == 3)
+```
+
+In order to perform a t-test, we can only do the comparison between two groups. Since I initially based off the question to compare the job satisfaction scores between males and females, and there is only 5 responses from non-binary genders which is not enough to make any statistical statements, the subsequent code for this section excludes non-binary people; however, doing a comparison with non-binary people could also yield interesting results, provided sufficient data.
+
+```{r}
+# Create a box plot to compare the job satisfaction score between males & females.
+medical_student_i_2 <- subset(medical_student, sex != 3)
+
+ggplot(medical_student_i_2, aes(x = jspe, fill = factor(sex))) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("#00BFC4", "#F8766D"), name = "Gender",
+                    labels = c("Male", "Female")) +
+  theme_minimal() +
+  labs(x = "JSPE Score", y = "Density",
+       title = "Distribution of JSPE Scores by Gender") +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 12, face = "bold"),
+        legend.position = "top",
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 12, face = "bold"),
+        panel.border = element_rect(color="gray30", fill=NA, linewidth=1))
+```
+
+
+```{r}
+# Conduct two-sample t-test
+t.test(jspe ~ sex, data = medical_student_i_2)
+```
+
+In summary, the test results indicate that there is a statistically significant difference (p-value ~ 0.001) in mean job satisfaction score between Females and Males, with Female participants reporting higher levels of job satisfaction than Male participants on average.
+
+### Q2: How have the different scores for Cognitive Empathy, Academic Motivation, Affective Empathy Rating, etc been calculated? Have they been calculated by using the other columns in the data or are they independent from the rest of the table? How are they related to each other?
+
+According to the research paper, which is the source for this data, the variables listed above have been calculated through survey responses from different scales.
+* The Maslach Burnout Inventory (MBI), the leading measure of burnout, is validated by the extensive research conducted for more than 35 years.
+* The State-Trait Anxiety Inventory (STAI) is a commonly used measure of trait and state anxiety (Spielberger, Gorsuch, Lushene, Vagg, & Jacobs, 1983). It can be used in clinical settings to diagnose anxiety and to distinguish it from depressive syndromes.
+
+For our purposes, I will rename the following variables:
+
+* `cesd` -> `depression`
+* `stai_t` -> `anxiety`
+* `mbi_ex` -> `exhaustion`
+* `mbi_cy` -> `cynicism`
+* `mbi_ea` -> `efficacy`
+
+```{r}
+medical_student_i_3 <- medical_student %>%
+  rename("depression" = cesd,
+         "anxiety" = stai_t,
+         "exhaustion" = mbi_ex,
+         "cynicism" = mbi_cy,
+         "efficacy" = mbi_ea)
+```
+
+Next, I will make a correlation plot between all the variables in the dataset to learn how the different variables are related with each other. 
+
+```{r}
+data_numerical<-medical_student_i_3
+c<-cor(data_numerical)
+corrplot(c, type = "upper")
+```
+
+From the above correlation plot, we notice that depression, anxiety, exhaustion, cynicism, and efficacy are mostly independent from the rest of the variables and have high correlation values among each other. Although, we do notice a slight negative correlation between these variables and 'health', which is the survey responses of student health satisfaction. These could be an interesting phenomenon worth investigating further. 
+
+# Orator 1: Anjali Mehta   
+
+### Q1: How does language spoken by medical students relate to their mental health and burnout levels?
+
+
+```{r}
+language_codes <- c("1"="French", "15"="German", "20"="English", "37"="Arab", "51"="Basque", "52"="Bulgarian", "53"="Catalan", "54"="Chinese", "59"="Korean", "60"="Croatian", "62"="Danish", "63"="Spanish", "82"="Estonian", "83"="Finnish", "84"="Galician", "85"="Greek", "86"="Hebrew", "87"="Hindi", "88"="Hungarian", "89"="Indonesian", "90"="Italian", "92"="Japanese", "93"="Kazakh", "94"="Latvian", "95"="Lithuanian", "96"="Malay", "98"="Dutch", "100"="Norwegian", "101"="Polish", "102"="Portuguese", "104"="Romanian", "106"="Russian", "108"="Serbian", "112"="Slovak", "113"="Slovenian", "114"="Swedish", "116"="Czech", "117"="Thai", "118"="Turkish", "119"="Ukrainian", "120"="Vietnamese", "121"="Other")
+
+medical_6 <- medical_student %>%
+  select(glang, psyt, stai_t, mbi_ex, mbi_cy, mbi_ea) %>%
+  group_by(glang) %>%
+  summarise(
+    'Psychological_Distress_Score' = mean( psyt ),
+    'Anxiety_Inventory'= mean(stai_t),
+    'Exhaustion_Burnout'= mean(mbi_ex),
+    'Cynicism_Burnout' = mean(mbi_cy),
+    'Efficacy_Burnout' = mean(mbi_ea)
+  ) %>%
+  mutate('Language_Spoken' = language_codes[as.character(glang)]) %>%
+   select('Language_Spoken', everything(), -glang)
+
+#table
+medical_6 %>%
+  kbl() %>%
+  kable_styling()
+
+# Psychological Distress Scores
+ggplot(medical_6[, c(1, 2)], aes(x = Language_Spoken, y = Psychological_Distress_Score, fill = Language_Spoken)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Language Spoken", y = "Psychological Distress Score", title = "Psychological Distress Scores by Language Spoken") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")  # rotate x-axis labels for better readability
+
+# Anxiety Inventory
+ggplot(medical_6[, c(1, 3)], aes(x = Language_Spoken, y = Anxiety_Inventory, fill = Language_Spoken)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Language Spoken", y = "Anxiety Inventory", title = "Anxiety Inventory by Language Spoken") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")  # rotate x-axis labels for better readability
+
+# Exhaustion Burnout 
+ggplot(medical_6[, c(1, 4)], aes(x = Language_Spoken, y = Exhaustion_Burnout, fill = Language_Spoken)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Language Spoken", y = "Exhaustion Burnout", title = "Exhaustion Burnout Scores by Language Spoken") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")  # rotate x-axis labels for better readability
+
+# Cynicism Burnout 
+ggplot(medical_6[, c(1, 5)], aes(x = Language_Spoken, y = Cynicism_Burnout, fill = Language_Spoken)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Language Spoken", y = "Cynicism_Burnout", title = "Cynicism_Burnout Scores by Language Spoken") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")  # rotate x-axis labels for better readability
+ 
+
+#Efficacy Burnout
+ggplot(medical_6[, c(1, 6)], aes(x = Language_Spoken, y = Efficacy_Burnout, fill = Language_Spoken)) +
+  geom_bar(stat = "identity") +
+  labs(x = "Language Spoken", y = "Efficacy_Burnout", title = "Cynicism_Burnout Scores by Language Spoken") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "none")  # rotate x-axis labels for better readability
+
+
+correlations <- medical_student %>%
+  select(glang, psyt, stai_t, mbi_ex, mbi_cy, mbi_ea)%>%
+  cor()
+
+# Print correlation matrix
+correlations%>%
+  kbl() %>%
+  kable_styling()
+```
+
+### Q2:  What is the relationship between academic efficacy and satisfaction with health?
+
+```{r}
+medical_7 <- medical_student %>%
+  select(health, mbi_ea)
+
+#table
+medical_7[1:10,] %>%
+  arrange(desc(health))%>%
+  kbl() %>%
+  kable_styling()
+
+# Calculate means by health and academic efficacy
+health_efficacy <- medical_7 %>%
+  group_by(health) %>%
+  summarize(mean_academic_efficacy = mean(mbi_ea))
+
+#table
+health_efficacy %>%
+  kbl() %>%
+  kable_styling()
+
+# Plot relationship between health and academic efficacy
+ggplot(health_efficacy, aes(x = health, y = mean_academic_efficacy)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Relationship between Academic Efficacy and Health", x = "Health", y = "Mean Academic Efficacy Score") +
+  theme_bw()
+
+# Calculate correlation between health and academic efficacy
+cor(health_efficacy$health, health_efficacy$mean_academic_efficacy)%>%
+  kbl() %>%
+  kable_styling()
+
+```
+
+# Orator 2: Yutong Wu
+
+### Q1: Does the job statisfaction score directly impact participants’ health with respect to health levels, anxiety inventory scale, academic motivation scores, and hours of study per week?
+
+```{r}
+
+ggplot(data = medical_student, aes(x = jspe, y = health, color = "Health")) + 
+  geom_point(size = 3) +
+  labs(x = "JSPE Scores", y = "Health Scores", 
+       title = "Relationship between JSPE Scores and Health") +
+  theme(plot.title = element_text(size = 14, face = "bold")) +
+  scale_color_manual(values = c("#0072B2"))
+
+ggplot(data = medical_student, aes(x = jspe, y = stai_t, color = "State Anxiety")) + 
+  geom_point(size = 3) +
+  labs(x = "JSPE Scores", y = "State Anxiety Scores", 
+       title = "Relationship between JSPE Scores and State Anxiety") +
+  theme(plot.title = element_text(size = 14, face = "bold")) +
+  scale_color_manual(values = c("#E69F00"))
+
+ggplot(data = medical_student, aes(x = jspe, y = amsp, color = "AMSP")) + 
+  geom_point(size = 3) +
+  labs(x = "JSPE Scores", y = "AMSP Scores", 
+       title = "Relationship between JSPE Scores and AMSP") +
+  theme(plot.title = element_text(size = 14, face = "bold")) +
+  scale_color_manual(values = c("#009E73"))
+
+ggplot(data = medical_student, aes(x = jspe, y = stud_h, color = "Study Habits")) + 
+  geom_point(size = 3) +
+  labs(x = "JSPE Scores", y = "Study Habits Scores", 
+       title = "Relationship between JSPE Scores and Study Habits") +
+  theme(plot.title = element_text(size = 14, face = "bold")) +
+  scale_color_manual(values = c("#CC79A7"))
+```
+
+### Q2: What is the relation between anxiety inventory scale and academic motivation scores? What are the factors causing the difference, i.e anxiety impacting academic motivation in any way?
+
+```{r}
+ggplot(data = medical_student, aes(x = factor(amsp), y = stai_t)) + 
+  geom_boxplot( color = "#0072B2", alpha = 0.8, size = 0.8) +
+  labs(x = "AMSP Scores", y = "State Anxiety Scores", 
+       title = "Relationship between AMSP Scores and State Anxiety")
+```
+
+We can tell from the graph that there is a relative negative trend in the relation between anxiety level and academic motivation. The students with higher academic motivation have a relative lower anxiety level.
+
+# Deliverer: Jillian Myler
+
+### Q1: :How does Partnership Status (part) contribute to self evaluated well being, including MBI emotional exhaustion and satisfaction with health(health)?
+
+```{r}
+partnership_status=
+  medical_student %>% 
+  select(c(part))
+
+
+partnership_status
+
+
+
+ps<-ggplot(partnership_status, aes(x=part)) + geom_histogram(fill='blue',color='black', bins =2)
+  
+ps + theme_minimal()
+
+part_plot<-ps +  xlab("% in partnership") + ylab("Density") + 
+  ggtitle("Distribution of Med Students in Partnership")  +
+  scale_fill_manual(values=c("red","green")) +
+  guides(fill=guide_legend(title="part"))+ 
+  geom_vline(xintercept = .50) + 
+  geom_hline(yintercept = 1.46)+
+  theme_minimal()
+
+part_plot + theme_minimal()
+
+health_sat =
+  medical_student %>%
+  select(c(health))
+hs<-ggplot(health_sat, aes(x=health)) + geom_histogram(fill='blue',color='black', bins=5)
+  
+hs + theme_minimal()
+
+plot1=
+  ggplot(medical_student, aes(x=health, fill =as.factor(part)))+
+  geom_histogram(bins=5)+
+  scale_fill_manual(values=c('red','green'))+
+  facet_wrap(~part)+
+  labs(fill = "Partnership Status")
+
+plot1 + theme_minimal()
+```
+
+### Q2: What is the relationship between emotional exhaustion and cynicism? Does this relationship relate in a particular manner to academic efficacy?
+
+```{r}
+ex_cynic_figure=
+ggplot(medical_student,aes(x=mbi_ex,y=mbi_cy))+
+  geom_point()
+
+ex_cynic_figure
+
+cynic_figure_line <- ex_cynic_figure + geom_abline(aes(intercept = mean(mbi_ex) - mean(mbi_cy),
+                           slope = 1),
+                       linetype = 2, color = "red")
+cynic_figure_line
+
+another_one <- cynic_figure_line+ geom_smooth(method = "lm")
+
+another_one
+
+compare_to_academics<-
+  another_one+
+  facet_wrap(~mbi_ea)
+
+compare_to_academics
+```
+
+
+# Follow-up Questions
+
+### New Questions Based Off Initial Investigation
+
+- Q1: How do mental health metrics vary between different geographic regions?
+- Q2:  What other variables in our data correlate with efficacy? What is the secret to becoming an academic weapon? 
+- Q3: Why is burnout level decreasing as we go through the years? 
+- Q4:  How do the different scores measure up if we divide them based on genders? Is there a statistically significant difference between the scores of male and female distributions?
+
+### Investigation of Follow-up Questions
+
+Our group decided to investigate Q2 and Q4 in further detail.
+
+### Follow-up Question 2: What other variables in our data correlate with efficacy? What is the secret to becoming an academic weapon? 
+
+From the correlation plot that we made for one of the initial questions, we had notices that efficacy was weakly positively correlated with `stud_h` (study hours), `health` (self-reported health score), `jspe` (job satisfaction score), `qcae_cog` (Cognitive empathy measured on the QCAE scale), and `amsp` (Assessment of Motor and Process Skills). We also saw a weak negative correlation with `psyt` (Had a psychotherapy test in the last year) and `qcae_aff` (Affective Empathy score measured on the QCAE scale). However, the most noteworthy observations were the strong negative correlations that efficay had with anxiety, depression, exhaustion, and cynicism. (Using the same terminologies from Interpreter's section Q2).
+
+#### Exploring the stronger negative correlations:
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+
+data <- medical_student_i_3 
+
+linear_regression <- function(data, x, y) {
+  OUTPUT <- ggplot(data, aes(x, y)) + 
+    geom_point() +
+    geom_smooth(method = "lm", formula = 'y ~ x', se = FALSE) +
+    theme_minimal() 
+  return (OUTPUT)
+}
+
+depression <- linear_regression(data, data$depression, data$efficacy) +
+  ggtitle("Relation b/w Depression & Efficacy") + 
+  labs(x = "Depression", y = "Efficacy")
+
+anxiety <- linear_regression(data, data$anxiety, data$efficacy) +
+  ggtitle("Relation b/w Anxiety & Efficacy") + 
+  labs(x = "Anxiety", y = "Efficacy")
+
+exhaustion <- linear_regression(data, data$exhaustion, data$efficacy) +
+  ggtitle("Relation b/w Exhaustion & Efficacy") + 
+  labs(x = "Exhaustion", y = "Efficacy") 
+  
+cynicism <- linear_regression(data, data$cynicism, data$efficacy) +
+  ggtitle("Relation b/w Cynicism & Efficacy") + 
+    labs(x = "Cynicism", y = "Efficacy") 
+
+
+
+grid.arrange(depression, anxiety, exhaustion, cynicism, ncol=2)
+```
+
+#### Exploring the weakly positive correlations:
+
+```{r}
+
+studyhours <- linear_regression(data, data$stud_h, data$efficacy) +
+  ggtitle("Relation b/w Study Hours & Efficacy") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold")) +
+  labs(x = "Study Hours", y = "Efficacy") 
+
+jobsatisfaction <- linear_regression(data, data$jspe, data$efficacy) +
+  ggtitle("Relation b/w Job Satisfaction Score & Efficacy") + 
+  theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold")) +
+  labs(x = "Job Satisfaction Score", y = "Efficacy")
+
+health<-ggplot(data, aes(x = as.factor(health), y = efficacy)) +
+  geom_boxplot() +
+  ggtitle("Relation b/w Health & Efficacy") +
+  theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold"))+
+  labs(x = "Health", y = "Efficacy")+
+  theme_minimal()
+
+cogemp <- linear_regression(data, data$qcae_cog, data$efficacy) +
+  ggtitle("Relation b/w Cognitive Empathy & Efficacy") +
+  theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold")) +
+  labs(x = "Cognitive Empathy Score", y = "Efficacy")
+
+academicmotiv <- linear_regression(data, data$amsp, data$efficacy) +
+  ggtitle("Relation b/w Academic Motivation & Efficacy") +
+  theme(plot.title = element_text(hjust = 0.5, size = 8, face = "bold")) +
+  labs(x = "Academic Motivation", y = "Efficacy")
+
+
+grid.arrange(studyhours, jobsatisfaction, health, cogemp, academicmotiv, ncol = 3)
+```
+
+### Follow-up Quesion 4: How do the different scores measure up if we divide them based on genders? Is there a statistically significant difference between the scores of males and femal
+
+```{r}
+#turn sex into a factor to do the plot color division
+x<-as.factor(data$sex)
+
+dep.g<-ggplot(data, aes(x = efficacy, y = depression, color= x)) +
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE, aes(color = x)) +
+  scale_color_manual(values = c("1" = "#F8766D", "2" = "#00BFC4"), 
+                     breaks = c(1, 2), 
+                     labels = c("Male", "Female")) +
+  labs(color = "Gender", fill = "Gender") +
+  theme_minimal()
+
+cyn.g <- ggplot(data, aes(x = efficacy, y = cynicism, color = x)) +
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE, aes(color = x)) +
+  scale_color_manual(values = c("1" = "#F8766D", "2" = "#00BFC4"), 
+                     breaks = c(1, 2), 
+                     labels = c("Male", "Female")) +
+  labs(color = "Gender", fill = "Gender") +
+  theme_minimal()
+
+
+exh.g<-ggplot(data, aes(x = efficacy, y = exhaustion, color= x))+
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE, aes(color = x)) +
+  scale_color_manual(values = c("1" = "#F8766D", "2" = "#00BFC4"), 
+                     breaks = c(1, 2), 
+                     labels = c("Male", "Female")) +
+  labs(color = "Gender", fill = "Gender") +
+  theme_minimal()
+
+anx.g<-ggplot(data, aes(x = efficacy, y = anxiety, color= x))+
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE, aes(color = x)) +
+  scale_color_manual(values = c("1" = "#F8766D", "2" = "#00BFC4"), 
+                     breaks = c(1, 2), 
+                     labels = c("Male", "Female")) +
+  labs(color = "Gender", fill = "Gender") +
+  theme_minimal()
+
+grid.arrange(dep.g,anx.g,cyn.g,exh.g, ncol=2)
+```
+
+#### Running the T-tests:
+
+For the following T-tests, males are group 1 and females are group 2. There were only 5 non-binary people, which is not enough data to perform any tests and come up with reasonable statistically significant conclusions. 
+
+```{r}
+medical.student.followup.1 <- medical_student_i_2
+
+# Conduct two-sample t-test for depression in males vs females.
+t.test(cesd ~ sex, data = medical.student.followup.1)
+
+```
+```{r}
+# Conduct two-sample t-test for anxiety in males vs females.
+t.test(stai_t ~ sex, data = medical.student.followup.1)
+```
+
+```{r}
+# Conduct two-sample t-test for Exhaustion in Males vs Females
+t.test(mbi_ex ~ sex, data = medical.student.followup.1)
+
+```
+```{r}
+# Conduct two-sample t-test
+t.test(mbi_cy ~ sex, data = medical.student.followup.1)
+
+```
+```{r}
+# Conduct two-sample t-test
+t.test(mbi_ea ~ sex, data = medical.student.followup.1)
+
+```
+
+# Summary
+
+The initial investigation of the questions revealed interesting results and insights. The dataset was primarily composed of self-reported survey responses, but it also included scores generated from established inventory scales such as *MBI* and *STAI*. **Most of the columns in the dataset were numerical but represented categorical groups.** For instance, `sex` was represented by 0 for males, 1 for females, and 2 for non-binary. Similarly, other variables like `glang`, `part`, `job`, `health`, and `psyt` were also represented by numerical values. Surprisingly, **the burnout levels decreased for upperclassmen**, which was unexpected as we had anticipated more burnout with longer time spent in medical school. Furthermore, **women reported higher job satisfaction scores than men**, which was a positive surprise considering the historical gender disparities in pay. Interestingly, **partnership status did not affect students' satisfaction with their health**. Instead, it appeared that more people were in partnerships, but their distribution in health satisfaction was similar. **Job satisfaction showed a weak correlation with other variables such as health, anxiety, academic motivation, and study habits**. The right-skewed trend in job satisfaction indicated that higher job satisfaction led to higher values for all remaining predictors. This led to a question about how these metrics would vary across geographic regions. The investigation into the effects of other variables on academic efficacy also showed similar trends. The decrease in burnout levels as students progressed in medical school led us to question why this was the case. **Finally, the question about gender disparities in job satisfaction led to further investigation into gender differences across other metrics and whether any of these differences were statistically significant.**
+
+After analyzing the data, we found the second and fourth follow-up questions to be the most promising. As students, we understand that academic efficacy is crucial for future academic or career pursuits, so we decided to investigate the variables that influence it. Additionally, we recognized that the gender wage gap is not the only difference between males and females in medical school, so we explored which metrics differed significantly between genders and how they evolved over time. For the second follow-up, we referred to the correlation plot to study the negative correlations between efficacy and depression, anxiety, exhaustion, and cynicism, creating scatterplots with the line of best fit to examine these correlations. We also investigated weak positive correlations between efficacy and study hours, job satisfaction, health, cognitive empathy, and academic motivation. To explore the fourth follow-up, we created scatterplots to visually represent the relationship between gender and age, depression, anxiety, cynicism, and exhaustion, enabling us to observe performance differences while accounting for age. We used T-tests to discover that there is a statistically significant difference in depression, exhaustion, and anxiety means between males and females but not in efficacy and cynicism. Finally, we discovered that as people age, they are less depressed and anxious, possibly due to a more stable mental state. However, we found that cynicism in females increases with age and plan to investigate this phenomenon further.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

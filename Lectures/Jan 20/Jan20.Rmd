@@ -1,0 +1,76 @@
+---
+title: "Jan 20"
+output: html_document
+date: "2023-01-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+```
+
+## January 20
+
+```{r flight}
+flights = flights
+head(flights)
+```
+
+### `select()` function
+
+```{r}
+data4 = select(flights, c(1, 3, 8, 12))
+head(data4)
+```
+
+### `mutate()` function
+
+Used to create new variables:
+  * Creative New Metrics
+  * Modify Units
+  * Transform Variables
+  * Unique Identifiers
+  * Numeric to Categorical
+  * Categorical to Numeric 
+
+Reduced dataset.
+
+```{r}
+flights_sml <- select(flights, year:day,
+                      starts_with("dep"),
+                      starts_with("arr"),
+                      distance, air_time)
+head(flights_sml)
+```
+
+```{r mutate example}
+mutate_flights_sml <- mutate(flights_sml,
+                             gain = arr_delay - dep_delay,
+                             speed = distance / air_time * 60)
+head(select(mutate_flights_sml, gain, speed, everything()))
+```
+
+```{r}
+transmute_flights_sml <- transmute(flights_sml,
+                                  gain = arr_delay - dep_delay,
+                                  speed = distance / air_time * 60)
+head(select(transmute_flights_sml, gain, speed, everything()))
+```
+
+With the `transmute()` function, we lost some of the variables, but the `mutate()` function actually kept the variables. So we should be careful whenever we use the `transmute()` function. 
+
+```{r}
+select(filter(flights, dep_delay == 10), contains("dep"))
+```
+
+### Basic and Modular Arithmetic
+
+```{r}
+flights1 = transmute(flights,
+                     dep_time,
+                     hour = dep_time %/% 100,    # Quotient
+                     minutes = dep_time %% 100)  # Remainder
+flights1
+```
+

@@ -1,0 +1,105 @@
+---
+title: "Lab 8: More Relational Data"
+author: "Yuvraj Jain"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+
+```{r setup, include=F}
+options(scipen=999)
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(rvest)
+```
+
+# Linking Important Information to Violent Crimes Data
+
+In this lab, we will join all 5 datasets from the lecture series on web scraping. In the zipped folder, there are *5* CSV files. In this section, we are going to merge all of that data into one object called `FINAL.VIOLENT`. 
+
+```{r,message=F}
+# Data for Part 1
+VIOLENT=read_csv("FINAL_VIOLENT.csv")
+ZIP=read_csv("FINAL_ZIP.csv")
+STATE_ABBREV=read_csv("FINAL_STATE_ABBREV.csv")
+CENSUS=read_csv("FINAL_CENSUS.csv")
+S_VS_D=read_csv("FINAL_SAFE_VS_DANGEROUS.CSV")
+```
+
+## 1: Get Desirable Data (1 Point)
+
+The dataset `S_VS_D` contains a variable `CLASS` where "S=Safe" and "D=Dangerous" according to the article *[These Are the 2018 Safest and Most Dangerous States in the U.S](https://www.securitysales.com/fire-intrusion/2018-safest-most-dangerous-states-us/)* by [Steve Karantzoulidis](https://www.securitysales.com/author/stevek/). We seek to compare the violent crime statistics for states not in this list. Use a filtering join to create a new data frame called `VIOLENT2` that only contains violent crime statistics from the states not represented in the data frame `S_VS_D`.  Use `str(VIOLENT2)` to display the variables and the dimensions of `VIOLENT2`. Do this without renaming any of the variables!!
+
+```{r, eval=T}
+VIOLENT2 = anti_join(VIOLENT, S_VS_D, by=c("State" = "STATE"))
+
+str(VIOLENT2) #Do Not Change
+VIOLENT2 
+```
+
+## 2: Fixing Instances in Crime (1 Point)
+
+Start by creating a new data set called `VIOLENT3` based on `VIOLENT2` that fixes some problems in the variable `City`. Specifically, we would like to change "Louisville Metro" and "Nashville Metropolitan" to "Louisville" and "Nashville", respectively. 
+
+```{r, eval=T}
+VIOLENT3=VIOLENT2 %>% mutate(City=ifelse(City == "Louisville Metro", "Louisville", City),
+                             City=ifelse(City == "Nashville Metropolitan", "Nashville", City))
+
+str(filter(VIOLENT3,City %in% c("Louisville","Nashville"))) #Do Not Change
+```
+
+## 3: Merging Data (2 Points)
+
+Next, create a new data frame named `VIOLENT4` that merges the population change and density measures from 2019 contained in `CENSUS` into `VIOLENT3` based on city and state. Use `head(VIOLENT4)` to give a preview of the new merged dataset. Only use a `left_join` for this part.
+
+```{r, eval=T}
+VIOLENT4 = left_join(VIOLENT3, CENSUS, by = c("City" = "Name", "State"))
+
+head(VIOLENT4) #Do Not Change
+VIOLENT4
+```
+
+### 3.1: Why is the Washington D.C. missing CENSUS information? Answer in complete sentences. (1 Point)
+
+Washington DC in the Violent 3 data set has a capitalized O in "District Of Columbia", while there is a lower case "o" in the "District of Columbia" in the CENSUS data set.
+
+## 4: Merging more Data (2 Points)
+
+Either ambitiously using one-step or less ambitiously using multiple steps merge the longitude and latitude information provided in `ZIP` into  `VIOLENT4` based on city and state. You will need to use `STATE_ABBREV` data to link these two data frames. Your final data frame named `FINAL.VIOLENT` should contain all of the information in `VIOLENT4` along with the variables `lat` and `lon` from `ZIP`. There should be **no** state abbreviations in `FINAL.VIOLENT` since this information is redundant.  Only use `left_join` and do this without renaming a single variable. Use `str(FINAL.VIOLENT)` to preview table.
+
+```{r, eval=T}
+FINAL.VIOLENT = VIOLENT4 %>%
+  left_join(STATE_ABBREV, by = c("State" = "state")) %>%
+  left_join(ZIP, by = c("City" = "city")) %>% select(-c(state, State.y)) 
+
+str(FINAL.VIOLENT) #Do Not Change
+```
+
+### 4.1: Why is the Washington D.C. missing latitude and longitude information? Answer in complete sentences. (1 Point)
+
+Washington D.C. is missing latitude and longutude because Washington D.C. is non-existent in the STATE_ABBREV dataset, so when we join the two data sets, Washington D.C. is not included in the new tibble. 
+
+## 5: Fixing Washington DC (2 Points)
+
+It is not possible to fix Washington DC, but lets try anyway.
+
+In `FINAL.VIOLENT`, we don't have census information or location information for Washington DC. Make modifications to the datasets, `CENSUS` and `STATE_ABBREV`, so that when you merge the datasets again, Washington DC has both census and location information. Then, redo the merges and create a new data frame called `FINAL.VIOLENT.FIX` that is not missing any information. You will probably have to do this in multiple steps. Only use `left_join` for all merges and never rename any variables.
+
+Finally, print out the row of the data pertaining to Washington DC, so that your lab instructor can see that you did it correctly. 
+
+```{r, eval=T}
+CENSUS.FIX <- CENSUS %>% mutate(State = ifelse(State == "District of Columbia", "District Of Columbia", State))
+
+New_DC <- data.frame("District Of Columbia", "DC")
+  names(New_DC) <- c("State", "state")
+  
+STATE_ABBREV.FIX <- STATE_ABBREV %>% rbind(New_DC)
+
+FINAL.VIOLENT.FIX <- VIOLENT3 %>% 
+  left_join(CENSUS.FIX, by = c("City" = "Name", "State"))%>%
+  left_join(STATE_ABBREV.FIX, by = "State")%>% 
+  left_join(ZIP, by = c("City" = "city", "state")) %>% 
+  select(-c(state))
+
+filter(FINAL.VIOLENT.FIX,City=="Washington",State== "District Of Columbia" ) # Do Not Change
+```

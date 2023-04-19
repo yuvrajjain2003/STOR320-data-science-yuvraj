@@ -1,0 +1,244 @@
+---
+title: "Homework 2"
+author: "Yuvraj Jain"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Instructions
+
+**Exercises:**  1-3 (Pgs. 49-50); 2-4 (Pg. 51); 2,4 (Pg. 54); 1-4 (Pg. 58)
+
+**Submission:** Submit via an electronic document on Sakai. Must be submitted as a HTML file generated in RStudio. All assigned problems are chosen according to the textbook *R for Data Science*. You do not need R code to answer every question. If you answer without using R code, delete the code chunk. If the question requires R code, make sure you display R code. If the question requires a figure, make sure you display a figure. A lot of the questions can be answered in written response, but require R code and/or figures for understanding and explaining. 
+
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(nycflights13)
+```
+
+# Chapter 3 (Pgs. 49-50)
+
+##  Exercise 1:
+
+### Find all flights that:
+
+####  (a) Had an arrival delay of two or more hours
+```{r}
+(part_a <- filter(flights, arr_delay >= 120))  # Arrival Delay is given in minutes.
+```
+
+####  (b) Flew to Houston (IAH or HOU)
+  
+```{r}
+(part_b <- filter(flights, dest == "HOU" | dest == "IAH"))
+```
+
+####  (c) Were operated by United, American, or Delta
+
+```{r}
+airlines
+(part_c <- filter(flights, carrier %in% c("UA", "DL", "AA")))
+```
+
+#### (d) Departed in summer (July, August, and September)
+
+```{r}
+(part_d <- filter(flights, month %in% c(7, 8, 9)))
+```
+
+#### (e) Arrived more than two hours late, but didn't leave late. 
+
+Here, I am only taking departure delays less than or equal to zero minutes because the prompt specifies to look for flights that did not leave late. For arriving more than two hours late, I am filtering for arrival delay more than 120 minutes.
+
+```{r}
+(part_e <- filter(flights, dep_delay <= 0 & arr_delay > 120))
+```
+
+#### (f) Were delayed by at least an hour, but made up over 30 mins in flight.
+
+```{r}
+(part_f <- filter(flights, dep_delay >= 60, dep_delay - arr_delay > 30))
+```
+
+#### (g) Departed between midnight and 6 a.m. (inclusive)
+
+```{r}
+(part_g <- filter(flights, (dep_time > 0 & dep_time < 600) | dep_time == 2400))
+```
+
+##  Exercise 2:
+
+#### Another useful `dplyr` filtering helper is `between()`. What does it do? Can you use it to simplify the code neeed to answer the previous challenges?
+
+```{r}
+?between()
+```
+
+The function `between()` is useful because it takes in three arguments, where the first argument is the value we're filtering, the second argument is the left bound, and the third argument is the right bound. So this is basically a shortcut for `x >= left & x <= right`. Yes, we can use it to simplify the code needed to answer the questions earlier, especially in cases which required multiple or conditions. For example, below, I will include a more efficient code for part d:
+
+```{r}
+(part_d_improved <- filter(flights, between(month, 7, 9)))
+```
+
+##  Exercise 3:
+
+#### How many flights have a missing `dep_time`? What other variables are missing? What might these rows represent?
+
+```{r}
+filter(flights, is.na(dep_time))
+```
+
+From the table above, we can see that there are 8255 rows or flights which have an NA `dep_time`. Co-incidentally, we also see that the `arr_time` and `air_time` for these flights is also NA. This leads me to suspect that these must be the flights that got cancelled and never flew. 
+
+# Chapter 3 (Pg. 51)
+
+##  Exercise 2
+
+#### Sort flights to find the most delayed flights. Find the flights that left earliest. 
+
+```{r}
+arrange(flights, desc(dep_delay))
+```
+
+From the table we see that the most delayed flight was 1301 minutes late. It was the flight on January 9th 2013 by Hawaiian Airlines from JFK. That is almost 22 hours. 
+
+To find the flight that left earliest (I assume earliest here means the earliest before the schedule departure time rather than the chronologically earliest flight which would be the flight that flew near midnight on January 1st, 2013), we need to arrange the table in ascending order.
+
+```{r}
+arrange(flights, dep_delay)
+```
+
+From the above table, we can see that the earliest flight flew 43 minutes before the scheduled departure time. This is the flight by JetBlue Airlines from JFK -> DEN.
+
+##  Exercise 3:
+
+#### Sort `flights` to find the fastest flights.
+
+I am assuming here that 'fastest' refers to the flights that had the least air time. 'Fastest' could also refer to the flight with the highest ground speed, which could also be found using by dividng `distance` with `air_time`. 
+
+```{r}
+arrange(flights, air_time)
+```
+
+From the above table, we can clearly see that the flight with the shortest air time is the EWR -> BDL airline which only has an airtime of 20 minutes.
+
+##  Exercise 4:
+
+#### Which flights traveled the longest? Which traveled the shortest?
+
+To answer the above questions, we must arrange the table in both ascending and descending order based on the distance and air time. Again, longest could refer to the longest air time or the longest distance, and so clear this ambiguity, I shall produce results for both the interpretations. 
+
+```{r}
+arrange(flights, air_time)
+arrange(flights, desc(air_time))
+arrange(flights, distance)
+arrange(flights, desc(distance))
+```
+
+# Chapter 3 (Pg. 54)
+
+##  Exercise 2:
+
+#### What happens if you include the name of a variable multiple times in a `select()` call?
+
+I'm not sure! Let's try out an example to see what happens.
+
+```{r}
+select(flights, dep_time, dep_time)
+```
+
+Hmm, it appears that putting the variable name twice did not do anything special. It just included the `dep_time` column once. Let's try to read up the documentation for select to see if we can find anything useful!
+
+```{r}
+?select()
+```
+
+Aha! We can see in the documentation clearly that the `select()` function ignores duplicate arguments in the function call. In hindsight, I should have suspected this when we used the `everything()` function in conjunction with `select()` to include every column, which would have inadvertently created some duplicate arguments. 
+
+##  Exercise 4:
+
+#### Does the result of running the following code surprise you? How do the select helpers deal with case by default? How can you change that default?
+
+```{r}
+select(flights, contains("TIME"))
+"hello" == "HELLO"
+```
+
+Yes! This was surprising for me because strings in most programming languages are case sensitive. In fact, even R returns a false statement if I try running `"hello" == "HELLO"`. Apparently the function ignores the case when it searches for a particular string name in the variable by default. I think this is useful when you have multiple columns that follow different naming conventions like camel case or snake case. 
+
+To change the behavior, we can just add the argument `ignore.case = FALSE.`
+
+# Chapter 3 (Pg. 58)
+
+##  Exercise 1:
+
+#### Currently `dep_time` and `sched_dep_time` are convenient to look at, but hard to compute with because they're not really continous numbers. Convert them to a more convenient representation of numbers since midnight.
+
+```{r}
+convenient_rep <- mutate(flights,
+                         dep_time_minutes = ((dep_time %/% 100) * 60 + dep_time %% 100) %% 1440,
+                         sched_dep_time_minutes = ((sched_dep_time %/% 100) * 60 + sched_dep_time %% 100) %% 1440
+)
+select(
+  convenient_rep, dep_time, dep_time_minutes, sched_dep_time,
+  sched_dep_time_minutes
+)
+```
+
+##  Exercise 2:
+ 
+#### Compare `air_time` with `arr_time - dep_time`. What do you expect to see? What do you see? What do you need to do to fix it?
+
+I expect that `air_time` will be the difference between the arrival and departure times.
+`Air Time = Arrival Time - Departure Time`
+
+```{r}
+flights2 <- mutate(flights, 
+                   gain = arr_time - dep_time
+)
+
+select(flights2,
+       air_time,
+       gain
+)
+```
+
+I created a new variable called `gain` which is just the difference of the arrival and departure times, and just from the first few values, we can clearly notice that `air_time != gain`. 
+
+One possible reason for this discrepance could be that flights flying over longer distances might show the local time zone, and the different time zones might change the relationship between air time and gain. A way to possibly fix this issue is to convert all the times to a common time zone, like UTC. But this would require knowing which time zone the flights are departing and arriving in.
+
+##  Exercise 3:
+
+#### Compare `dep_time`, `sched_dep_time`, and `dep_delay`. How would you expect those three numbers to be related?
+
+I would expect the departure delay to be equal to the difference between scheduled departure time and actual departure time. Let's write up some R code to compare and test this hypothesis. 
+
+```{r}
+flights_deptime <- mutate(convenient_rep,
+                          dep_delay_diff = dep_delay - dep_time_minutes + sched_dep_time_minutes
+)
+filter(flights_deptime, dep_delay_diff != 0) # Searching for rows where the hypothesis doesn't hold true.
+```
+
+Here, we again see 1236 records where this hypothesis broke down. Looking at the departure and arrival times for these flights indicates that most of these flights were flying during midnight, which would explain why air time is not equal to the difference of arrival time and departure time. 
+
+##  Exercise 4
+
+#### Find the 10 most delayed flights using a ranking function. How do you want to handle ties? Carefully read the documentation for `min_rank()`?
+
+```{r}
+flights_delayed <- mutate(flights,
+                          dep_delay_min_rank = min_rank(desc(dep_delay))) %>%
+                  filter(dep_delay_min_rank <= 10) %>%
+                  arrange(dep_delay_min_rank)
+
+select(flights_delayed, month, day, carrier, flight, dep_delay, dep_delay_min_rank)
+  
+```
+
+To handle ties, we can base ranking on other factors apart from just the departure delay. We could introduce an accuracy metric that measure some weightage of departure and arrival delay.

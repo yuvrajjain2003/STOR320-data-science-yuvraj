@@ -1,0 +1,134 @@
+---
+title: "Homework 7"
+author: "Yuvraj Jain"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Instructions
+
+**Exercises:**  1,4 (Pg. 358); 1,4 (Pgs. 371)
+
+**Submission:** Submit via an electronic document on Sakai. Must be submitted as a HTML file generated in RStudio. All assigned problems are chosen according to the textbook *R for Data Science*. You do not need R code to answer every question. If you answer without using R code, delete the code chunk. If the question requires R code, make sure you display R code. If the question requires a figure, make sure you display a figure. A lot of the questions can be answered in written response, but require R code and/or figures for understanding and explaining.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(modelr)
+options(na.action = na.warn)
+```
+
+
+# Chapter 18 (Pg. 358)
+
+##  Exercise 1:
+
+Instead of using `lm()` to to fit a straight line, you can `loess()` to fit a smooth curve. Repeat the process of model fitting, grid generation, predictions, and visualization on `sim1` using `loess()` instead of `lm()`. How does the result compare to `geom_smooth()`?
+
+### Model Fitting:
+
+```{r}
+sim1_loess <- loess(y ~ x, data = sim1)
+sim1_loess
+```
+
+### Generating Grid:
+
+```{r}
+grid <- sim1 %>%
+  data_grid(x)
+grid
+```
+
+### Adding Predictions:
+
+```{r}
+grid <- grid %>%
+  add_predictions(sim1_loess)
+grid
+```
+
+### Visualization:
+
+```{r}
+ggplot() +
+  geom_point(sim1, mapping = aes(x = x, y = y)) + 
+  geom_line(
+    data = grid,
+    mapping = aes(x = x, y = pred),
+    color = "red",
+    linewidth = 1
+  )
+```
+
+The predictions of loess are the same as the default method for geom_smooth() because geom_smooth() uses loess() by default; the message even tells us that.
+
+```{r}
+ggplot() + 
+  geom_point(sim1, mapping = aes(x = x, y = y)) +
+  geom_smooth(grid, mapping = aes(x = x, y = pred))
+```
+
+##  Exercise 4:
+
+Why might you want to look at a frequency polygon of absolute residuals? What are the pros and cons compared to looking at the raw residuals?
+
+### Pros of looking at a frequency polygon of absolute residuals:
+
+* Provides a clearer picture of the overall accuracy of the model.
+* Captures the magnitude of errors, allowing us to see if the model is consistently making predictions that are off by a certain amount.
+* Helps to identify patterns or trends in the errors, such as over- or under-prediction for certain values.
+
+### Cons of looking at a frequency polygon of absolute residuals:
+
+* Does not provide information about the direction of errors, which may be important in certain contexts.
+* Does not allow for the identification of systematic biases, such as a tendency to consistently over- or under-predict values in a certain range.
+* May be less intuitive or difficult to interpret.
+
+# Chapter 18 (Pg. 371)
+
+##  Exercise 1:
+
+What happens if you repeat the analysis of sim2 using a model without an intercept? What happens to the model equation? What happens to the predictions?
+
+Removing the intercept from our model:
+
+```{r}
+mod2a <- lm(y ~ x - 1, data = sim2)
+mod2 <- lm(y ~ x, data = sim2)
+```
+
+The predictions are exactly the same in the models with and without an intercept:
+
+```{r}
+grid <- sim2 %>%
+  data_grid(x) %>%
+  spread_predictions(mod2, mod2a)
+grid
+```
+
+##  Exercise 4: 
+
+For sim4, which of mod1 and mod2 is better? I think mod2 does a slightly better job at removing patterns, but it’s pretty subtle. Can you come up with a plot to support my claim?
+
+Based on the models `mod1` and `mod2` written in the readings before the exercise, we know that:
+
+```{r}
+mod1 <- lm(y ~ x1 + x2, data = sim4)
+mod2 <- lm(y ~ x1 * x2, data = sim4)
+sim4_mods <- gather_residuals(sim4, mod1, mod2)
+```
+
+I can make a frequency polygon plot for the residuals of mod1 and mod2 to make a more appropriate comparison between the two.
+Here is the frequency polygon below:
+
+```{r}
+ggplot(sim4_mods, aes(x = abs(resid), color = model)) +
+  geom_freqpoly(binwidth = 0.5) +
+  geom_rug()
+```
+
+From the above plot, we can see that mod2 has slightly lesser residual values than mod1, and this confirms that `mod2` does a slightly better job at removing patterns.

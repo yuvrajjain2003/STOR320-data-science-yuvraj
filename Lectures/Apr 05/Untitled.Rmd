@@ -1,0 +1,100 @@
+---
+title: "Apr05-Lecture"
+output: html_document
+date: "2023-04-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=F)
+options(scipen=999)
+library(tidyverse)    #Essential Functions
+library(modelr)       #Helpful Functions in Modeling
+library(purrr)
+library(broom)
+```
+
+## R Markdown
+
+# Modeling 5 - Dealing with Categorical Variables
+
+* How can we deal with categorical variables because sometimes it's not as simple as using fixed distance numerical values because people don't always interpret words with the same perspective. Some option may be worth 0.5, 1.2, 2.3, 3, etc. The difference doesn't have to be the same.
+
+* Questions:
+
+  * What does 77.5 represent?
+  It represents the average enjoyment of all the people who ate Hot Dogs because R is using Ice cream as the slope. 
+  
+  * What does the -0.283 represent?
+  It represents the change in enjoyment for all the people who ate ice cream.
+  
+  
+* Summary
+
+  * Analysis of Variance (ANOVA)
+  * Numerical Response Variable
+  * Categorical Explanatory Variables
+  * Purpose
+    * Generalize t-test
+    * Estimate difference in means between groups
+  * Experimental Designs
+  
+```{r}
+IRIS = iris[, c(1, 2, 5)]
+names(IRIS) = c("L", "W", "S")
+head(IRIS)
+```
+
+* Question of Interest?
+
+Can we explain the variation in sepal width using sepal length and species?
+
+```{r}
+model1 = lm(W~L, IRIS)
+tidy(model1)
+```
+
+```{r}
+model2 = lm(W~L+S, IRIS)
+tidy(model2)
+```
+
+```{r}
+model3 = lm(W~L+S+L*S, IRIS)
+tidy(model3)
+```
+
+```{r}
+IRIS %>%
+  gather_predictions(model1, model2, model3) %>%
+  glimpse()
+```
+
+You would do cross-validation between the models, calculate the RMSE and see which one predicts the best using RMSE. Whichever model has the lowest RMSE is the best one?
+
+# How to deal with Y variable categorical:
+
+* Basic case: Binary Response
+  * Variable has two possible outcomes
+  * Typically, yes or no responses to a question
+  * Example
+    * Y = DO you enjoy your experience in the presence of the doctor?
+    * Y = Did you pass your STOR320 class?
+    * Y = Are you comfortable having your mind blown?
+  
+* Question: Are students who get good grades in STOR 320 less likely to recommend this class to an enemy?
+
+  * Bernoulli Random Variable
+  
+$$
+  \begin{equation}
+  Y = \left \{
+  \begin{aligned}
+    &1, && \text{if Yes}\\
+    &0, && \text{if No}
+  \end{aligned} \right.
+\end{equation} 
+$$
+
+$Y' = \Sigma Y_i ~ \text{Binomial}(n, p)$
+
+

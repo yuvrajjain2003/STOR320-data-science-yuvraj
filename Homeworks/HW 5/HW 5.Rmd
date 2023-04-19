@@ -1,0 +1,178 @@
+---
+title: "Homework 5"
+author: "Yuvraj Jain"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Instructions
+
+**Exercises:**  1,3 (Pg. 227); 2 (Pg. 232); 1,2 (Pg. 235); 
+
+**Submission:** Submit via an electronic document on Sakai. Must be submitted as a HTML file generated in RStudio. All assigned problems are chosen according to the textbook *R for Data Science*. You do not need R code to answer every question. If you answer without using R code, delete the code chunk. If the question requires R code, make sure you display R code. If the question requires a figure, make sure you display a figure. A lot of the questions can be answered in written response, but require R code and/or figures for understanding and explaining.
+
+```{r, include=FALSE}
+library(tidyverse)
+library(forcats)
+```
+
+# Chapter 12 (Pg. 227)
+
+##  Exercise 1
+
+Explore the distribution of `rincome` (reported income). What makes the default bar chart hard to understand? How could you improve the plot?
+
+```{r}
+ggplot(data = gss_cat) +
+  geom_bar(mapping = aes(rincome))
+```
+
+The problem with the default implementation of `geom_bar()` is hard to understand because it puts the `rincome` variable on the x axis by default, which overlaps text on each other. We can improve this by putting `rincome` on the y axis. Also, we can arrange the income to go in increasing order from the bottom of the graph to the top using factors, which is easier to read.
+
+```{r}
+ggplot(data = gss_cat) +
+  geom_bar(mapping = aes(y = fct_rev(fct_relevel(rincome, "Not applicable")))) +
+  theme_minimal()
+
+```
+
+##  Exercise 3:
+
+Which relig does denom (denomination) apply to? How can you find out with a table? How can you find out with a visualization?
+
+Making the table:
+
+```{r}
+gss_cat %>%
+  filter(denom != "Not applicable") %>%
+  group_by(relig) %>%
+  count()
+```
+
+From the table we can see over 10,000 rows for Protestant, which tells us that denom primarily applies to the Protestant religion. 
+
+Seeing the same result through a scatterplot.
+
+```{r}
+gss_cat %>%
+  count(relig, denom) %>%
+  ggplot(aes(x = relig, y = denom, size = n)) +
+  geom_point() +
+  theme(axis.text.x = element_text(angle = 90))
+```
+
+From the scatterplot, we can see that `denom` refers to Protestant.
+
+# Chapter 12 (Pg. 232)
+
+##  Exercise 2:
+
+For each factor in `gss_cat` identify whether the order of the levels is arbitrary (Nominal) or principled (Ordinal).
+
+There are 6 categorical variables in `gss_cat`:
+
+### 1. `marital`
+
+```{r}
+levels(gss_cat$marital)
+```
+
+Marital status is somewhat principled where we move from "Never married" to "Separated", "Divorced", "Widowed", and then "Married". But, I would still consider this variable to be mostly arbitrary because there is no clear order to arrange these levels.
+
+### 2. `race`
+
+```{r}
+levels(gss_cat$race)
+gss_cat %>%
+  ggplot(aes(race)) +
+  geom_bar() +
+  scale_x_discrete(drop = FALSE)
+```
+
+The ordering of race is principled in that the categories are ordered by count of observations in the data.
+
+### 3. `rincome`
+
+The levels of rincome are ordered in decreasing order of the income; however the placement of “No answer”, “Don’t know”, and “Refused” before, and “Not applicable” after the income levels is arbitrary
+
+```{r}
+levels(gss_cat$rincome)
+```
+
+### 4. `relig`
+
+The levels of relig is arbitrary, since there is no way to naturally order the religions. 
+
+### 5. `denom`
+
+The levels of denom is also arbitrary, because, again, we can't order the denominations in any natural order.
+
+### 6. `partyid`
+
+Ignoring “No answer”, “Don’t know”, and “Other party”, the levels of partyid are ordered from “Strong Republican”" to “Strong Democrat”.
+
+```{r}
+levels(gss_cat$partyid)
+```
+
+# Chapter 12 (Pg. 235)
+
+##  Exercise 1
+
+How have the proportions of people identifying as Democrat, Republican, and Independent changed over time?
+
+```{r}
+gss_cat %>%
+  mutate(
+    partyid =
+      fct_collapse(partyid,
+        Other = c("No answer", "Don't know", "Other party"),
+        Republican = c("Strong republican", "Not str republican"),
+        Independent = c("Ind,near rep", "Independent", "Ind,near dem"),
+        Democrat = c("Not str democrat", "Strong democrat")
+      )
+  ) %>%
+  count(year, partyid) %>%
+  group_by(year) %>%
+  mutate(proportion = n / sum(n)) %>%
+  ggplot(aes(
+    x = year, y = proportion,
+    colour = fct_reorder2(partyid, year, proportion)
+  )) +
+  geom_point() +
+  geom_line() +
+  labs(colour = "Party ID") +
+  theme_minimal() +
+  xlab("Year") +
+  ylab("Proportion")
+```
+
+##  Exercise 2:
+
+How could you collapse `rincome` into a small set of categories?
+
+```{r}
+levels(gss_cat$rincome)
+```
+
+```{r}
+gss_cat %>%
+  mutate(
+    rincome =
+      fct_collapse(
+        rincome,
+        `Unknown` = c("No answer", "Don't know", "Refused", "Not applicable"),
+        `Lt $5000` = c("Lt $1000", "$1000 to 2999", "$3000 to 3999", "$4000 to 4999"),
+        `$5000 - $10000` = c("$5000 to 5999", "$6000 to 6999", "$7000 to 7999", "$8000 to 9999"),
+        `$10000 - $20000` = c("$10000 - 14999", "$15000 - 19999"),
+        `$20000 or more` = c("$25000 or more", "$20000 - 24999")
+      )
+  ) %>%
+  ggplot(aes(x = rincome)) +
+  geom_bar() +
+  coord_flip()
+```

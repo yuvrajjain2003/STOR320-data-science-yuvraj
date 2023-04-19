@@ -1,0 +1,253 @@
+---
+title: "Homework 4"
+author: "Yuvraj Jain"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Instructions
+
+**Exercises:**  2,3 (Pg. 151); 2,4 (Pg. 156); 1,2 (Pgs. 160-161); 2 (Pg. 163); 2,3,4 (Pg. 168)
+
+**Submission:** Submit via an electronic document on Sakai. Must be submitted as a HTML file generated in RStudio. All assigned problems are chosen according to the textbook *R for Data Science*. You do not need R code to answer every question. If you answer without using R code, delete the code chunk. If the question requires R code, make sure you display R code. If the question requires a figure, make sure you display a figure. A lot of the questions can be answered in written response, but require R code and/or figures for understanding and explaining.
+
+```{r, include=FALSE}
+library(tidyverse)
+```
+
+# Chapter 9 (Pg. 151)
+
+##  Exercise 2:
+
+Compute the `rate` for `table2`, and `table4a + table4b`. You will need to perform four operations:
+  a. Extract the number of TB cases per country per year.
+  b. Extract the matching population per country per year.
+  c. Divide cases by population, and multiply by 10,000.
+  d. Store back in the appropriate place.
+Which representation is easiest to work with? Which is hardest? Why?
+
+```{r, eval = F}
+table2
+table4a
+table4b
+```
+## For Table 2:
+
+```{r}
+table2.tidy <- table2 %>%
+  spread(key = type, value = count) %>%
+  spread(key = year, value = cases)
+
+head(table2.tidy)
+```
+
+### Part (a)
+
+```{r}
+table2.a.1999 <- table2.tidy %>%
+  drop_na(`1999`) %>%
+  select(-`2000`) %>%
+  mutate(TB_cases = `1999` / population * 10000)
+
+head(table2.a.1999)
+```
+
+```{r}
+table2.a.2000 <- table2.tidy %>%
+  drop_na(`2000`) %>%
+  select(-`1999`) %>%
+  mutate(TB_cases = `2000` / population * 10000)
+
+head(table2.a.2000)
+```
+
+### Part (b)
+
+```{r}
+table4c <-
+  tibble(
+    country = table4a$country,
+    `1999` = table4a[["1999"]] / table4b[["1999"]] * 10000,
+    `2000` = table4a[["2000"]] / table4b[["2000"]] * 10000
+  )
+table4c
+```
+
+Neither implementation was particularly easy to work with. Part(b) has much less code but I had to spend much more time looking around online to figure out how to extract certain columns from a table. Whereas, part(a) was more intuitive for me, but it might also be due to the fact that the code that I wrote for part (a) resembles the things we talked about in lecture. However, once I understood how the code for part(b) was working, it doesn't seem too bad. If I were given the choice of which data to work with, I would still prefer working with part(a) because I prefer keeping my data in one table than span it across different tables, because that's harder to work with, at least for me.
+
+##  Exercise 3
+
+Recreate the plot showing changes in cases over time using table2 instead of table1. What do you need to do first?
+
+The first thing we need to do is filter the table to only select the rows with the cases.
+
+```{r}
+table2 %>%
+  filter(type == "cases") %>%
+  ggplot(mapping = aes(year, count)) +
+  geom_line(mapping = aes(group = country), color = "grey50") + 
+  geom_point(mapping = aes(color = country))
+```
+
+# Chapter 9 (Pg. 156)
+
+##  Exercise 2
+
+Why does this code fail?
+
+```{r, eval = F}
+table4a %>%
+  gather(1999, 2000, key = "year", value = "cases")
+```
+
+This code fails because 1999 and 2000 are non-syntactic variable names. R will interpret these as integer values. To let R know that these are in fact variable names, we need to surrround 1999 and 2000 with backticks like this: \`1999\`, and \`2000`. We could also provide them as strings, and R would then interpret them as variables as well.
+
+##  Exercise 4:
+
+Tidy this simple tibble. Do you need to spread or gather it? What are the variables?
+
+```{r}
+preg <- tribble(
+  ~pregnant, ~male, ~female,
+  "yes", NA, 10,
+  "no", 20, 12
+)
+```
+
+For this tiblle, we need to spread the data. The variables are female, pregnant, and count. 
+
+```{r}
+preg_tidy <- preg %>%
+  pivot_longer(c(male, female), names_to = "sex", values_to = "count", values_drop_na = TRUE) %>%
+  mutate(
+    female = sex == "female",
+    pregnant = pregnant == "yes"
+  ) %>%
+  select(female, pregnant, count)
+  
+preg_tidy
+```
+
+# Chapter 9 (Pgs. 160-161)
+
+##  Exercise 1
+
+What do the `extra` and `fill` arguments do in `separate()`? Experiment with the various options for the following two toy datasets.
+
+The extra argument tells separate() what to do if there are too many pieces, and the fill argument tells it what to do if there aren’t enough. By default, separate() drops extra values with a warning.
+
+```{r, eval = T}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>%
+  separate(x, c("one", "two", "three"), extra = "drop")
+```
+
+```{r, eval = T}
+tibble(x = c("a,b,c", "d,e,f,g", "h,i,j")) %>%
+  separate(x, c("one", "two", "three"), extra = "merge")
+```
+
+```{r, eval = T}
+tibble(x = c("a,b,c", "d,e", "f,g,i")) %>%
+  separate(x, c("one", "two", "three"), fill = "right")
+```
+
+Similarly, we also have fill left.
+
+```{r, eval = T}
+tibble(x = c("a,b,c", "d,e", "f,g,i")) %>%
+  separate(x, c("one", "two", "three"), fill = "left")
+```
+
+##  Exercise 2:
+
+Both `unite()` and `separate()` have a remove argument. What does it do? Why would you set it to FALSE?
+
+The remove argument discards input columns in the result data frame. You would set it to FALSE if you want to create a new variable, but keep the old one.
+
+# Chapter 9 (Pg. 163)
+
+##  Exercise 2:
+
+Compare and contrast the fill arguments to `spread()` and `complete()`?
+
+The `fill` argument in `spread()` will replace ALL missing values regardless of columns with the same value. The `fill` argument of `complete()` accepts a list where each slot is the missing value for each column. So missing values per column are customizable to any chosen missing.
+
+What does the direction argument to fill() do?
+
+If we have this dataset
+
+```{r}
+treatment <- tribble(
+  ~ person,           ~ treatment, ~response,
+  "A",                1,           7,
+  NA,                 2,           10,
+  NA,                 3,           9,
+  "D",                1,           4
+)
+```
+
+We have two missing values in column `person`. We can carry over the value `Katherine` to replace the missing values or we could take `Derrick` to replace the missing values. `.direction` does exactly that by specifying either `down` or `up`.
+
+Ex 1.
+```{r}
+fill(treatment, person, .direction = "up")
+```
+
+Ex 2.
+```{r}
+fill(treatment, person, .direction = "down")
+```
+
+# Chapter 9 (Pg. 168)
+
+##  Exercise 2:
+
+What happens if you neglect the `mutate()` step? (mutate(key = stringr::str_replace(key, "newrel", "new_rel")))
+
+The `separate()` function emits the warning “too few values”. If we check the rows for keys beginning with `"newrel_"`, we see that sexage is missing, and `type = m014`.
+
+##  Exercise 3:
+
+I claimed that `iso2` and `iso3` were redundant with country. Confirm this claim.
+
+```{r}
+who3 <- who %>% 
+  pivot_longer(
+  cols = new_sp_m014:newrel_f65, 
+  names_to = "key", 
+  values_to = "cases", 
+  values_drop_na = TRUE
+  ) %>%
+  mutate(names_from = stringr::str_replace(key, "newrel", "new_rel")) %>%
+  separate(key, c("new", "type", "sexage"), sep = "_")
+
+select(who3, country, iso2, iso3) %>%
+  distinct() %>%
+  group_by(country) %>%
+  filter(n() > 1)
+
+```
+
+This makes sense, since iso2 and iso3 contain the 2- and 3-letter country abbreviations for the country. The iso2 variable contains each country’s ISO 3166 alpha-2, and the iso3 variable contains each country’s ISO 3166 alpha-3 abbreviation. You may recognize the ISO 3166-2 abbreviations, since they are almost identical to internet country-code top level domains, such as .uk (United Kingdom), .ly (Libya), .tv (Tuvalu), and .io (British Indian Ocean Territory).
+
+##  Exercise 4:
+
+For each country, year, and sex, compute the total number of TB cases. Make an informative visualization of the data.
+
+```{r}
+who3 %>%
+  select(-new, -iso2, -iso3) %>%
+  separate(sexage, c("sex", "age"), sep = 1) %>%
+  group_by(country, year, sex) %>%
+  filter(year > 1995) %>%
+  summarise(cases = sum(cases)) %>%
+  unite(country_sex, country, sex, remove = FALSE) %>%
+  ggplot(aes(x = year, y = cases, group = country_sex, colour = sex)) +
+  geom_line()
+```
+
+A small multiples plot faceting by country is difficult given the number of countries. Focusing on those countries with the largest changes or absolute magnitudes after providing the context above is another option.

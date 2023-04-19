@@ -1,0 +1,15 @@
+---
+title: "Jan 23 - Data Transformation III"
+output: html_document
+date: "2023-01-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(nycflights13)
+```
+
+The kable package is a great way to display R tables as HTML tables, which are much nicer to look at. There is also kableExtra which introduces even more features. 
+
+You want to always show the size of the dataset using n() when producing a summary. 
